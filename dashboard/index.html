@@ -67,11 +67,17 @@
             
             <!-- KPI 數據卡片 -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white rounded-2xl p-6 shadow-sm border border-purple-50 flex items-center">
-                    <div class="rounded-full bg-purple-100 p-4 mr-4 text-3xl">👥</div>
-                    <div>
-                        <p class="text-gray-500 text-sm font-bold">總報名人數</p>
-                        <p class="text-4xl font-black text-purple-700" id="kpi-total">0</p>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-purple-50 flex flex-col justify-center">
+                    <div class="flex items-center">
+                        <div class="rounded-full bg-purple-100 p-4 mr-4 text-3xl">👥</div>
+                        <div>
+                            <p class="text-gray-500 text-sm font-bold mb-1">總報名人數 <span class="text-xs text-purple-400 font-normal ml-1">(限額 4 名)</span></p>
+                            <div class="flex items-baseline space-x-2">
+                                <p class="text-4xl font-black text-purple-700" id="kpi-total">0</p>
+                                <p class="text-xl font-bold text-gray-400">/ 4</p>
+                                <span id="full-badge" class="hidden bg-red-100 text-red-600 text-xs px-2 py-1 rounded font-bold ml-2 shadow-sm animate-pulse border border-red-200">🔴 已額滿</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="bg-white rounded-2xl p-6 shadow-sm border border-blue-50 flex items-center">
@@ -186,7 +192,8 @@
             // 排除空列
             const validData = data.filter(row => row['姓名'] && row['姓名'].trim() !== '');
 
-            // 1. 更新 KPI
+            // 1. 更新 KPI 與判斷額滿
+            const MAX_CAPACITY = 4;
             const total = validData.length;
             const physicalCount = validData.filter(r => r['參與方式'] === '實體').length;
             const onlineCount = validData.filter(r => r['參與方式'] === '線上').length;
@@ -195,6 +202,13 @@
             animateValue("kpi-total", 0, total, 1000);
             animateValue("kpi-physical", 0, physicalCount, 1000);
             animateValue("kpi-online", 0, onlineCount, 1000);
+
+            // 若額滿則顯示標籤
+            if (total >= MAX_CAPACITY) {
+                document.getElementById('full-badge').classList.remove('hidden');
+            } else {
+                document.getElementById('full-badge').classList.add('hidden');
+            }
 
             // 2. 準備圖表資料
             // 職類統計
