@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教學訓練工作坊 - 報名現況儀表板</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <!-- 引入 Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; }
+        .bg-animated-gradient {
+            background: linear-gradient(-45deg, #4f46e5, #9333ea, #c026d3, #6b21a8);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .chart-container { position: relative; height: 300px; width: 100%; }
+        /* 滾動條美化 */
+        ::-webkit-scrollbar { width: 6px; height: 6px;}
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d8b4fe; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #c084fc; }
+    </style>
+</head>
+<body class="bg-animated-gradient min-h-screen py-10 px-4 sm:px-6 lg:px-8 text-gray-800">
+
+    <div class="max-w-6xl mx-auto glass-panel rounded-3xl shadow-2xl overflow-hidden">
+        
+        <!-- Header 區塊 -->
+        <div class="bg-gradient-to-r from-indigo-900 to-purple-800 px-8 py-8 text-white relative overflow-hidden flex justify-between items-center flex-col md:flex-row gap-4">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -translate-y-1/2 translate-x-1/4"></div>
+            <div>
+                <h1 class="text-3xl font-black mb-2 tracking-wide drop-shadow-md flex items-center">
+                    📊 報名現況儀表板
+                </h1>
+                <p class="text-purple-200 text-sm font-medium">教學訓練計畫主持人工作坊 🚀</p>
+            </div>
+            <div>
+                <button onclick="fetchData()" class="bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/30 transition-all text-white font-bold py-2 px-6 rounded-full shadow-lg flex items-center">
+                    <span id="refreshIcon" class="mr-2">🔄</span> 更新資料
+                </button>
+            </div>
+        </div>
+
+        <!-- 載入中動畫 -->
+        <div id="loading" class="py-20 flex flex-col items-center justify-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-purple-600 mb-4"></div>
+            <p class="text-purple-800 font-bold text-lg animate-pulse">正在讀取最新報名資料...</p>
+        </div>
+
+        <!-- 內容區塊 (預設隱藏，資料載入後顯示) -->
+        <div id="dashboard-content" class="p-6 md:p-8 hidden">
+            
+            <!-- KPI 數據卡片 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-purple-50 flex items-center">
+                    <div class="rounded-full bg-purple-100 p-4 mr-4 text-3xl">👥</div>
+                    <div>
+                        <p class="text-gray-500 text-sm font-bold">總報名人數</p>
+                        <p class="text-4xl font-black text-purple-700" id="kpi-total">0</p>
+                    </div>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-blue-50 flex items-center">
+                    <div class="rounded-full bg-blue-100 p-4 mr-4 text-3xl">🏫</div>
+                    <div>
+                        <p class="text-gray-500 text-sm font-bold">實體參與</p>
+                        <p class="text-4xl font-black text-blue-700" id="kpi-physical">0</p>
+                    </div>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-green-50 flex items-center">
+                    <div class="rounded-full bg-green-100 p-4 mr-4 text-3xl">🌐</div>
+                    <div>
+                        <p class="text-gray-500 text-sm font-bold">線上參與</p>
+                        <p class="text-4xl font-black text-green-600" id="kpi-online">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 圖表區塊 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <!-- 職類分佈長條圖 -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                    <h2 class="text-lg font-bold text-gray-700 mb-4 flex items-center"><span class="mr-2">📋</span> 負責職類分佈</h2>
+                    <div class="chart-container">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 圓餅圖區塊 -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
+                        <h2 class="text-lg font-bold text-gray-700 mb-4 text-center">💻 參與方式</h2>
+                        <div class="chart-container flex-1">
+                            <canvas id="modeChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
+                        <h2 class="text-lg font-bold text-gray-700 mb-4 text-center">👑 計畫主持人</h2>
+                        <div class="chart-container flex-1">
+                            <canvas id="directorChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最新報名名單 -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="px-6 py-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                    <h2 class="text-lg font-bold text-gray-700"><span class="mr-2">✨</span> 最新報名名單</h2>
+                    <span class="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-full">僅顯示最新 10 筆</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-white text-gray-500 text-sm border-b border-gray-100">
+                                <th class="py-3 px-6 font-medium">報名時間</th>
+                                <th class="py-3 px-6 font-medium">姓名</th>
+                                <th class="py-3 px-6 font-medium">機構名</th>
+                                <th class="py-3 px-6 font-medium">負責職類</th>
+                                <th class="py-3 px-6 font-medium">方式</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body" class="text-sm text-gray-700">
+                            <!-- 資料將由 JS 動態生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // 您的 Apps Script Web App URL
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbxahZmuauqqbhlF47qsLOgIE9rlmqaHfml6t6fritzpwZXY0MzaGmTsesMckbNZLOOp/exec';
+        
+        // 宣告圖表變數以便後續更新
+        let chartCategory, chartMode, chartDirector;
+
+        // 初始化設定 Chart.js 全局字體
+        Chart.defaults.font.family = "'Noto Sans TC', sans-serif";
+        Chart.defaults.color = '#6b7280';
+
+        // 頁面載入時自動抓取資料
+        window.addEventListener('DOMContentLoaded', fetchData);
+
+        function fetchData() {
+            // 切換 UI 狀態
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('dashboard-content').classList.add('hidden');
+            const refreshIcon = document.getElementById('refreshIcon');
+            refreshIcon.classList.add('animate-spin');
+
+            fetch(scriptURL)
+                .then(response => response.json())
+                .then(data => {
+                    processData(data);
+                    
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('dashboard-content').classList.remove('hidden');
+                    refreshIcon.classList.remove('animate-spin');
+                })
+                .catch(error => {
+                    console.error('讀取資料失敗:', error);
+                    alert('讀取資料失敗，請確認 Google Sheet 設定與部署是否正確。');
+                    document.getElementById('loading').classList.add('hidden');
+                    refreshIcon.classList.remove('animate-spin');
+                });
+        }
+
+        function processData(data) {
+            // 排除空列
+            const validData = data.filter(row => row['姓名'] && row['姓名'].trim() !== '');
+
+            // 1. 更新 KPI
+            const total = validData.length;
+            const physicalCount = validData.filter(r => r['參與方式'] === '實體').length;
+            const onlineCount = validData.filter(r => r['參與方式'] === '線上').length;
+
+            // 實作數字跳動動畫效果
+            animateValue("kpi-total", 0, total, 1000);
+            animateValue("kpi-physical", 0, physicalCount, 1000);
+            animateValue("kpi-online", 0, onlineCount, 1000);
+
+            // 2. 準備圖表資料
+            // 職類統計
+            const categories = {};
+            // 主持人統計
+            let directorYes = 0, directorNo = 0;
+
+            validData.forEach(row => {
+                const cat = row['負責的職類'] || '未填寫';
+                categories[cat] = (categories[cat] || 0) + 1;
+                
+                if(row['是否擔任計畫主持人'] === '是') directorYes++;
+                else directorNo++;
+            });
+
+            // 3. 繪製圖表
+            renderCategoryChart(categories);
+            renderModeChart(physicalCount, onlineCount);
+            renderDirectorChart(directorYes, directorNo);
+
+            // 4. 渲染最新名單表格 (反轉陣列取最新 10 筆)
+            renderTable([...validData].reverse().slice(0, 10));
+        }
+
+        // --- 繪製職類長條圖 ---
+        function renderCategoryChart(catData) {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            const labels = Object.keys(catData);
+            const data = Object.values(catData);
+
+            if (chartCategory) chartCategory.destroy();
+
+            chartCategory = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '報名人數',
+                        data: data,
+                        backgroundColor: 'rgba(147, 51, 234, 0.6)',
+                        borderColor: 'rgb(147, 51, 234)',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+        }
+
+        // --- 繪製參與方式圓餅圖 ---
+        function renderModeChart(physical, online) {
+            const ctx = document.getElementById('modeChart').getContext('2d');
+            if (chartMode) chartMode.destroy();
+
+            chartMode = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['實體', '線上'],
+                    datasets: [{
+                        data: [physical, online],
+                        backgroundColor: ['#3b82f6', '#22c55e'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        // --- 繪製主持人圓餅圖 ---
+        function renderDirectorChart(yes, no) {
+            const ctx = document.getElementById('directorChart').getContext('2d');
+            if (chartDirector) chartDirector.destroy();
+
+            chartDirector = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['是', '否'],
+                    datasets: [{
+                        data: [yes, no],
+                        backgroundColor: ['#f59e0b', '#cbd5e1'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        // --- 渲染最新名單表格 ---
+        function renderTable(recentData) {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            if (recentData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-gray-400">目前尚無報名資料</td></tr>';
+                return;
+            }
+
+            recentData.forEach(row => {
+                // 格式化時間 (如果有的話)
+                let timeStr = row['報名時間'] || '-';
+                if(timeStr && timeStr.includes('T')) {
+                    const d = new Date(timeStr);
+                    timeStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                }
+
+                // 參與方式標籤顏色
+                const modeBadge = row['參與方式'] === '實體' 
+                    ? '<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded font-bold">實體</span>' 
+                    : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold">線上</span>';
+
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-gray-50 hover:bg-purple-50/50 transition-colors';
+                tr.innerHTML = `
+                    <td class="py-3 px-6">${timeStr}</td>
+                    <td class="py-3 px-6 font-bold text-gray-800">${row['姓名'] || '-'}</td>
+                    <td class="py-3 px-6 text-gray-500">${row['機構名'] || '-'}</td>
+                    <td class="py-3 px-6">${row['負責的職類'] || '-'}</td>
+                    <td class="py-3 px-6">${modeBadge}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- 數字跳動特效函式 ---
+        function animateValue(id, start, end, duration) {
+            if (start === end) {
+                document.getElementById(id).innerHTML = end;
+                return;
+            }
+            let range = end - start;
+            let current = start;
+            let increment = end > start ? 1 : -1;
+            let stepTime = Math.abs(Math.floor(duration / range));
+            let obj = document.getElementById(id);
+            let timer = setInterval(function() {
+                current += increment;
+                obj.innerHTML = current;
+                if (current == end) {
+                    clearInterval(timer);
+                }
+            }, stepTime);
+        }
+    </script>
+</body>
+</html>
