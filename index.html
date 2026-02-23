@@ -12,20 +12,17 @@
         body {
             font-family: 'Noto Sans TC', sans-serif;
         }
-        /* 動態漸層背景動畫 */
-        .bg-animated-gradient {
-            background: linear-gradient(-45deg, #4f46e5, #9333ea, #c026d3, #6b21a8);
-            background-size: 400% 400%;
-            animation: gradientBG 15s ease infinite;
-        }
-        @keyframes gradientBG {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+        /* 自訂背景圖片 */
+        .bg-custom-image {
+            background-image: url('https://github.com/linmenggann/TrainingWorkshop/raw/main/%E6%95%99%E5%AD%B8%E9%83%A8%E7%B5%84%E7%B9%94%E6%9E%B6%E6%A7%8B.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
         }
         /* 玻璃擬物化特效 */
         .glass-panel {
-            background: rgba(255, 255, 255, 0.85);
+            background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.3);
@@ -43,7 +40,7 @@
         }
     </style>
 </head>
-<body class="bg-animated-gradient min-h-screen py-10 px-4 sm:px-6 lg:px-8 flex items-center justify-center text-gray-800">
+<body class="bg-custom-image min-h-screen py-10 px-4 sm:px-6 lg:px-8 flex items-center justify-center text-gray-800">
 
     <div class="max-w-3xl w-full glass-panel rounded-3xl shadow-2xl overflow-hidden transform transition-all hover:scale-[1.01] duration-500">
         
