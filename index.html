@@ -234,18 +234,161 @@
             font-size: 0.95rem;
         }
 
-        /* Options with pill style */
-        .option-pills {
-            display: flex;
-            gap: 10px;
+        /* Form inputs */
+        .form-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 10px;
+            padding: 10px 15px;
+            color: #fff;
+            font-family: 'Noto Sans TC', sans-serif;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.3s ease;
         }
 
-        .pill {
-            background: rgba(255, 255, 255, 0.12);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+        .form-input::placeholder {
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .form-input:focus {
+            border-color: rgba(200, 160, 255, 0.7);
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 15px rgba(123, 47, 247, 0.3);
+        }
+
+        .form-select {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 10px;
+            padding: 10px 15px;
+            color: #fff;
+            font-family: 'Noto Sans TC', sans-serif;
+            font-size: 0.95rem;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .form-select option {
+            background: #4a1a8a;
+            color: #fff;
+        }
+
+        .form-select:focus {
+            border-color: rgba(200, 160, 255, 0.7);
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 15px rgba(123, 47, 247, 0.3);
+        }
+
+        /* Radio buttons */
+        .radio-group {
+            display: flex;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .radio-option {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .radio-option input[type="radio"] {
+            display: none;
+        }
+
+        .radio-option .radio-label {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.25);
             border-radius: 20px;
-            padding: 5px 16px;
+            padding: 8px 20px;
             font-size: 0.9rem;
+            transition: all 0.3s ease;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .radio-option input[type="radio"]:checked + .radio-label {
+            background: linear-gradient(135deg, #9b59b6, #7b2ff7);
+            border-color: rgba(255, 255, 255, 0.5);
+            box-shadow: 0 4px 15px rgba(123, 47, 247, 0.5);
+            transform: scale(1.05);
+        }
+
+        .radio-option .radio-label:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Submit button */
+        .submit-btn {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            margin-top: 10px;
+            background: linear-gradient(135deg, #9b59b6, #7b2ff7, #6c3ce0);
+            background-size: 200% auto;
+            border: none;
+            border-radius: 15px;
+            color: #fff;
+            font-family: 'Noto Sans TC', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            letter-spacing: 2px;
+        }
+
+        .submit-btn:hover {
+            background-position: right center;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(123, 47, 247, 0.5);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            padding: 18px 35px;
+            border-radius: 15px;
+            font-weight: 700;
+            font-size: 1rem;
+            z-index: 9999;
+            transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            backdrop-filter: blur(20px);
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast.success {
+            background: rgba(46, 204, 113, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .toast.error {
+            background: rgba(231, 76, 60, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        /* Required asterisk */
+        .required {
+            color: #ff6b9d;
+            margin-left: 2px;
         }
 
         /* Contact card */
@@ -417,55 +560,90 @@
             </div>
         </div>
 
-        <!-- Registration Fields -->
+        <!-- Registration Form -->
         <div class="card">
             <div class="card-title">
-                <span class="emoji">📝</span> 報名資訊欄位
+                <span class="emoji">📝</span> 線上報名表單
             </div>
-            <div class="form-section">
+            <form id="registrationForm" class="form-section" onsubmit="return false;">
                 <div class="form-row">
                     <span class="form-emoji">👤</span>
-                    <span class="form-label">姓名</span>
-                    <span class="form-value">請填寫您的全名</span>
+                    <span class="form-label">姓名 <span class="required">*</span></span>
+                    <input type="text" class="form-input" name="name" placeholder="請填寫您的全名" required>
                 </div>
                 <div class="form-row">
                     <span class="form-emoji">🏢</span>
-                    <span class="form-label">機構名</span>
-                    <span class="form-value">請填寫所屬機構名稱</span>
+                    <span class="form-label">機構名 <span class="required">*</span></span>
+                    <input type="text" class="form-input" name="institution" placeholder="請填寫所屬機構名稱" required>
                 </div>
                 <div class="form-row">
                     <span class="form-emoji">💼</span>
-                    <span class="form-label">職稱</span>
-                    <span class="form-value">請填寫您的職稱</span>
+                    <span class="form-label">職稱 <span class="required">*</span></span>
+                    <input type="text" class="form-input" name="title" placeholder="請填寫您的職稱" required>
                 </div>
                 <div class="form-row">
-                    <span class="form-emoji">📧</span>
-                    <span class="form-label">Email</span>
-                    <span class="form-value">請填寫電子信箱</span>
-                </div>
-                <div class="form-row">
-                    <span class="form-emoji">📱</span>
-                    <span class="form-label">聯繫電話</span>
-                    <span class="form-value">請填寫聯繫電話</span>
+                    <span class="form-emoji">🩺</span>
+                    <span class="form-label">負責職類 <span class="required">*</span></span>
+                    <select class="form-select" name="category" required>
+                        <option value="" disabled selected>請選擇職類</option>
+                        <option value="藥事">藥事</option>
+                        <option value="醫事放射">醫事放射</option>
+                        <option value="醫事檢驗">醫事檢驗</option>
+                        <option value="護理">護理</option>
+                        <option value="營養">營養</option>
+                        <option value="呼吸治療">呼吸治療</option>
+                        <option value="聽力">聽力</option>
+                        <option value="物理治療">物理治療</option>
+                        <option value="職能治療">職能治療</option>
+                        <option value="臨床心理">臨床心理</option>
+                        <option value="語言治療">語言治療</option>
+                        <option value="其他">其他</option>
+                    </select>
                 </div>
                 <div class="form-row">
                     <span class="form-emoji">🎯</span>
-                    <span class="form-label">是否擔任主持人</span>
-                    <div class="option-pills">
-                        <span class="pill">✅ 是</span>
-                        <span class="pill">❌ 否</span>
+                    <span class="form-label">是否擔任主持人 <span class="required">*</span></span>
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="isHost" value="是" required>
+                            <span class="radio-label">✅ 是</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="isHost" value="否">
+                            <span class="radio-label">❌ 否</span>
+                        </label>
                     </div>
                 </div>
                 <div class="form-row">
                     <span class="form-emoji">🖥️</span>
-                    <span class="form-label">參與方式</span>
-                    <div class="option-pills">
-                        <span class="pill">🏫 實體</span>
-                        <span class="pill">💻 線上</span>
+                    <span class="form-label">參與方式 <span class="required">*</span></span>
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="mode" value="實體" required>
+                            <span class="radio-label">🏫 實體</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="mode" value="線上">
+                            <span class="radio-label">💻 線上</span>
+                        </label>
                     </div>
                 </div>
-            </div>
+                <div class="form-row">
+                    <span class="form-emoji">📧</span>
+                    <span class="form-label">Email <span class="required">*</span></span>
+                    <input type="email" class="form-input" name="email" placeholder="請填寫電子信箱" required>
+                </div>
+                <div class="form-row">
+                    <span class="form-emoji">📱</span>
+                    <span class="form-label">聯繫電話 <span class="required">*</span></span>
+                    <input type="tel" class="form-input" name="phone" placeholder="請填寫聯繫電話" required>
+                </div>
+                <button type="submit" class="submit-btn" id="submitBtn">🚀 送出報名</button>
+            </form>
         </div>
+
+        <!-- Toast notification -->
+        <div class="toast" id="toast"></div>
 
         <!-- Contact Info -->
         <div class="card">
@@ -510,7 +688,7 @@
     </div>
 
     <script>
-        // Create floating emoji particles
+        // ========== Floating Particles ==========
         const emojis = ['✨', '💜', '🎓', '⭐', '🌟', '💫', '🔮', '🎯', '💡', '🩺', '📚', '🎉'];
         const particlesContainer = document.getElementById('particles');
 
@@ -523,17 +701,77 @@
             particle.style.animationDuration = (Math.random() * 8 + 6) + 's';
             particle.style.animationDelay = (Math.random() * 2) + 's';
             particlesContainer.appendChild(particle);
-
             setTimeout(() => particle.remove(), 16000);
         }
 
-        // Initial particles
         for (let i = 0; i < 15; i++) {
             setTimeout(createParticle, i * 300);
         }
-
-        // Continuous particles
         setInterval(createParticle, 800);
+
+        // ========== Toast Notification ==========
+        function showToast(message, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type;
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => toast.classList.remove('show'), 4000);
+        }
+
+        // ========== Form Submission ==========
+        // >>> 部署 Apps Script 後，請將下方 URL 替換為您的 Web App URL <<<
+        const APPS_SCRIPT_URL = 'YOUR_APPS_SCRIPT_WEB_APP_URL';
+
+        document.getElementById('registrationForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            if (APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_WEB_APP_URL') {
+                showToast('⚠️ 請先設定 Apps Script Web App URL', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('submitBtn');
+            const form = this;
+
+            // Validate all required fields
+            if (!form.checkValidity()) {
+                showToast('❌ 請填寫所有必填欄位', 'error');
+                form.reportValidity();
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = '⏳ 送出中...';
+
+            const data = {
+                name: form.name.value.trim(),
+                institution: form.institution.value.trim(),
+                title: form.title.value.trim(),
+                category: form.category.value,
+                isHost: form.isHost.value,
+                mode: form.mode.value,
+                email: form.email.value.trim(),
+                phone: form.phone.value.trim()
+            };
+
+            fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(() => {
+                showToast('🎉 報名成功！感謝您的報名！', 'success');
+                form.reset();
+            })
+            .catch(() => {
+                showToast('❌ 送出失敗，請稍後再試', 'error');
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.textContent = '🚀 送出報名';
+            });
+        });
     </script>
 </body>
 </html>
