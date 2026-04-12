@@ -754,15 +754,18 @@
                 phone: form.phone.value.trim()
             };
 
-            fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            })
-            .then(() => {
-                showToast('🎉 報名成功！感謝您的報名！', 'success');
-                form.reset();
+            const params = new URLSearchParams(data).toString();
+            const url = APPS_SCRIPT_URL + '?' + params;
+
+            fetch(url)
+            .then(res => res.json())
+            .then(result => {
+                if (result.status === 'success') {
+                    showToast('🎉 報名成功！感謝您的報名！', 'success');
+                    form.reset();
+                } else {
+                    showToast('❌ ' + (result.message || '送出失敗'), 'error');
+                }
             })
             .catch(() => {
                 showToast('❌ 送出失敗，請稍後再試', 'error');

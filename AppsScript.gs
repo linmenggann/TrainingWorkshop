@@ -69,6 +69,46 @@ function doPost(e) {
 }
 
 function doGet(e) {
+  // 如果有帶參數，視為報名提交（解決跨域 POST 重導向問題）
+  if (e && e.parameter && e.parameter.name) {
+    try {
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName(SHEET_NAME);
+
+      if (!sheet) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: 'error', message: '找不到分頁：' + SHEET_NAME }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      const p = e.parameter;
+      const timestamp = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+
+      const row = [
+        timestamp,
+        p.name || '',
+        p.institution || '',
+        p.title || '',
+        p.category || '',
+        p.isHost || '',
+        p.mode || '',
+        p.email || '',
+        p.phone || ''
+      ];
+
+      sheet.appendRow(row);
+
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: 'success', message: '報名成功' }))
+        .setMimeType(ContentService.MimeType.JSON);
+
+    } catch (error) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
   return ContentService
     .createTextOutput(JSON.stringify({ status: 'ok', message: '工作坊報名 API 運作中 ✅' }))
     .setMimeType(ContentService.MimeType.JSON);
