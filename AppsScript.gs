@@ -27,6 +27,7 @@
  */
 
 const SHEET_NAME = '工作坊報名資料';
+const MAX_CAPACITY = 4;
 
 function doPost(e) {
   try {
@@ -116,6 +117,23 @@ function doGet(e) {
     }
   }
 
+  // action=count：回傳目前報名人數
+  if (e && e.parameter && e.parameter.action === 'count') {
+    try {
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName(SHEET_NAME);
+      const count = sheet ? Math.max(sheet.getLastRow() - 1, 0) : 0;
+
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: 'success', count: count, max: MAX_CAPACITY }))
+        .setMimeType(ContentService.MimeType.JSON);
+    } catch (error) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
   // 如果有帶參數，視為報名提交（解決跨域 POST 重導向問題）
   if (e && e.parameter && e.parameter.name) {
     try {
@@ -125,6 +143,14 @@ function doGet(e) {
       if (!sheet) {
         return ContentService
           .createTextOutput(JSON.stringify({ status: 'error', message: '找不到分頁：' + SHEET_NAME }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      // 額滿檢查
+      const currentCount = Math.max(sheet.getLastRow() - 1, 0);
+      if (currentCount >= MAX_CAPACITY) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: 'full', message: '報名已額滿，無法受理' }))
           .setMimeType(ContentService.MimeType.JSON);
       }
 

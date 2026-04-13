@@ -391,6 +391,50 @@
             margin-left: 2px;
         }
 
+        /* Capacity banner */
+        .capacity-banner {
+            text-align: center;
+            padding: 18px 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            font-weight: 700;
+            font-size: 1.05rem;
+            animation: fadeInUp 0.6s ease-out both;
+        }
+
+        .capacity-banner.open {
+            background: rgba(46, 204, 113, 0.15);
+            border: 1px solid rgba(46, 204, 113, 0.4);
+        }
+
+        .capacity-banner.full {
+            background: rgba(231, 76, 60, 0.2);
+            border: 1px solid rgba(231, 76, 60, 0.5);
+            font-size: 1.2rem;
+            padding: 25px;
+        }
+
+        .capacity-banner .capacity-emoji { font-size: 1.4rem; }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            margin-top: 12px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.8s ease;
+        }
+
+        .progress-bar-fill.green { background: linear-gradient(90deg, #2ecc71, #27ae60); }
+        .progress-bar-fill.yellow { background: linear-gradient(90deg, #f1c40f, #f39c12); }
+        .progress-bar-fill.red { background: linear-gradient(90deg, #e74c3c, #c0392b); }
+
         /* Contact card */
         .contact-grid {
             display: grid;
@@ -560,8 +604,11 @@
             </div>
         </div>
 
+        <!-- Capacity Banner -->
+        <div id="capacityBanner" class="capacity-banner open" style="display:none;"></div>
+
         <!-- Registration Form -->
-        <div class="card">
+        <div class="card" id="formCard">
             <div class="card-title">
                 <span class="emoji">📝</span> 線上報名表單
             </div>
@@ -723,21 +770,52 @@
         }
 
         // ========== Form Submission ==========
-        // >>> 部署 Apps Script 後，請將下方 URL 替換為您的 Web App URL <<<
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxNAQitakMXvgvW8Licz67to1YJC7gss8dAOuj1x_y7tkwUks_ApjwbBonv7OKQpmA7/exec';
+        const MAX_CAPACITY = 4;
 
+        // ========== Capacity Check ==========
+        function updateCapacityUI(count) {
+            const banner = document.getElementById('capacityBanner');
+            const formCard = document.getElementById('formCard');
+            const remaining = MAX_CAPACITY - count;
+            const pct = Math.min((count / MAX_CAPACITY) * 100, 100);
+            const barColor = pct < 50 ? 'green' : pct < 100 ? 'yellow' : 'red';
+
+            banner.style.display = 'block';
+
+            if (count >= MAX_CAPACITY) {
+                banner.className = 'capacity-banner full';
+                banner.innerHTML = '<span class="capacity-emoji">🚫</span> 報名已額滿（' + count + ' / ' + MAX_CAPACITY + '）<br><span style="font-size:0.95rem; opacity:0.8; font-weight:400;">感謝您的關注，本場次名額已全部額滿！</span>';
+                formCard.style.display = 'none';
+            } else {
+                banner.className = 'capacity-banner open';
+                banner.innerHTML = '<span class="capacity-emoji">🎫</span> 報名名額：' + count + ' / ' + MAX_CAPACITY + '（剩餘 <strong>' + remaining + '</strong> 名）' +
+                    '<div class="progress-bar-bg"><div class="progress-bar-fill ' + barColor + '" style="width:' + pct + '%"></div></div>';
+                formCard.style.display = 'block';
+            }
+        }
+
+        function checkCapacity() {
+            fetch(APPS_SCRIPT_URL + '?action=count')
+                .then(res => res.json())
+                .then(result => {
+                    if (result.status === 'success') {
+                        updateCapacityUI(result.count);
+                    }
+                })
+                .catch(() => {});
+        }
+
+        // Check capacity on page load
+        checkCapacity();
+
+        // ========== Form Submit ==========
         document.getElementById('registrationForm').addEventListener('submit', function (e) {
             e.preventDefault();
-
-            if (APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_WEB_APP_URL') {
-                showToast('⚠️ 請先設定 Apps Script Web App URL', 'error');
-                return;
-            }
 
             const btn = document.getElementById('submitBtn');
             const form = this;
 
-            // Validate all required fields
             if (!form.checkValidity()) {
                 showToast('❌ 請填寫所有必填欄位', 'error');
                 form.reportValidity();
@@ -767,6 +845,10 @@
                 if (result.status === 'success') {
                     showToast('🎉 報名成功！感謝您的報名！', 'success');
                     form.reset();
+                    checkCapacity();
+                } else if (result.status === 'full') {
+                    showToast('🚫 報名已額滿，無法受理！', 'error');
+                    checkCapacity();
                 } else {
                     showToast('❌ ' + (result.message || '送出失敗'), 'error');
                 }
