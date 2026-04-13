@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>報名現況儀表板 — 教學訓練計畫主持人工作坊</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #0f0225 0%, #1a0533 20%, #2d1266 45%, #4a1a8a 70%, #6b2fb7 100%);
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        /* Glow orbs */
+        .glow-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(100px);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .glow-orb-1 { width: 500px; height: 500px; background: rgba(123, 47, 247, 0.2); top: -150px; right: -150px; animation: pulse 7s ease-in-out infinite; }
+        .glow-orb-2 { width: 400px; height: 400px; background: rgba(195, 155, 211, 0.15); bottom: -100px; left: -100px; animation: pulse 9s ease-in-out infinite reverse; }
+        .glow-orb-3 { width: 300px; height: 300px; background: rgba(100, 50, 200, 0.15); top: 50%; left: 50%; transform: translate(-50%, -50%); animation: pulse 11s ease-in-out infinite; }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.4; }
+            50% { transform: scale(1.3); opacity: 0.7; }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 40px 20px 30px;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        .header h1 {
+            font-size: 2.4rem;
+            font-weight: 900;
+            background: linear-gradient(90deg, #fff, #d4b5ff, #fff);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 3s linear infinite;
+            margin-bottom: 8px;
+        }
+
+        .header .sub { font-size: 1rem; opacity: 0.7; letter-spacing: 2px; }
+
+        @keyframes shimmer { 0% { background-position: 0% center; } 100% { background-position: 200% center; } }
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 80px 20px;
+            font-size: 1.3rem;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        /* Stats row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 18px;
+            margin-bottom: 30px;
+            animation: fadeInUp 0.8s ease-out 0.1s both;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 18px;
+            padding: 25px 20px;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 15px 40px rgba(123, 47, 247, 0.3);
+        }
+
+        .stat-card .stat-emoji { font-size: 2.2rem; display: block; margin-bottom: 8px; }
+        .stat-card .stat-number { font-size: 2.5rem; font-weight: 900; line-height: 1.1; }
+        .stat-card .stat-label { font-size: 0.85rem; opacity: 0.7; margin-top: 5px; letter-spacing: 1px; }
+
+        /* Chart cards */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 18px;
+            padding: 25px;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .chart-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(123, 47, 247, 0.25);
+        }
+
+        .chart-card h3 {
+            font-size: 1.15rem;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+            max-height: 300px;
+        }
+
+        /* Table */
+        .table-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 18px;
+            padding: 25px;
+            margin-bottom: 30px;
+            animation: fadeInUp 0.8s ease-out 0.3s both;
+            overflow-x: auto;
+        }
+
+        .table-card h3 {
+            font-size: 1.15rem;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        thead th {
+            background: rgba(123, 47, 247, 0.35);
+            padding: 12px 14px;
+            text-align: left;
+            font-weight: 700;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+        }
+
+        thead th:first-child { border-radius: 10px 0 0 0; }
+        thead th:last-child { border-radius: 0 10px 0 0; }
+
+        tbody tr {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            transition: background 0.2s;
+        }
+
+        tbody tr:hover { background: rgba(255, 255, 255, 0.06); }
+
+        tbody td {
+            padding: 11px 14px;
+            white-space: nowrap;
+        }
+
+        .tag-sm {
+            display: inline-block;
+            background: linear-gradient(135deg, rgba(155, 89, 182, 0.4), rgba(123, 47, 247, 0.4));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 3px 12px;
+            font-size: 0.8rem;
+        }
+
+        .badge {
+            display: inline-block;
+            border-radius: 15px;
+            padding: 3px 12px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+        .badge-yes { background: rgba(46, 204, 113, 0.3); border: 1px solid rgba(46, 204, 113, 0.5); }
+        .badge-no { background: rgba(231, 76, 60, 0.3); border: 1px solid rgba(231, 76, 60, 0.5); }
+        .badge-onsite { background: rgba(52, 152, 219, 0.3); border: 1px solid rgba(52, 152, 219, 0.5); }
+        .badge-online { background: rgba(241, 196, 15, 0.3); border: 1px solid rgba(241, 196, 15, 0.5); }
+
+        /* Refresh button */
+        .refresh-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 12px;
+            padding: 8px 18px;
+            color: #fff;
+            font-family: 'Noto Sans TC', sans-serif;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 5px;
+        }
+
+        .refresh-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+
+        .refresh-btn.spinning .refresh-icon { animation: spin 0.8s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            opacity: 0.6;
+            font-size: 1.1rem;
+        }
+
+        .empty-state .empty-emoji { font-size: 3rem; display: block; margin-bottom: 15px; }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 25px;
+            opacity: 0.5;
+            font-size: 0.8rem;
+        }
+
+        /* Back link */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.3s;
+        }
+        .back-link:hover { color: #fff; }
+
+        @media (max-width: 600px) {
+            .header h1 { font-size: 1.6rem; }
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .charts-grid { grid-template-columns: 1fr; }
+            .stat-card .stat-number { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="glow-orb glow-orb-1"></div>
+    <div class="glow-orb glow-orb-2"></div>
+    <div class="glow-orb glow-orb-3"></div>
+
+    <div class="container">
+
+        <div class="header">
+            <a href="index.html" class="back-link">&larr; 回到報名頁面</a>
+            <h1>📊 報名現況儀表板</h1>
+            <p class="sub">教學訓練計畫主持人工作坊 ｜ 即時數據總覽</p>
+        </div>
+
+        <div id="app">
+            <div class="loading" id="loadingState">✨ 正在載入報名資料...</div>
+        </div>
+
+        <div class="footer">💜 奇美醫院教學部 &copy; 2026 — 報名現況儀表板 💜</div>
+    </div>
+
+    <script>
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxNAQitakMXvgvW8Licz67to1YJC7gss8dAOuj1x_y7tkwUks_ApjwbBonv7OKQpmA7/exec';
+
+        const PALETTE = [
+            '#a78bfa', '#c084fc', '#e879f9', '#f472b6', '#fb7185',
+            '#f97316', '#facc15', '#4ade80', '#34d399', '#22d3ee',
+            '#60a5fa', '#818cf8'
+        ];
+
+        let categoryChart = null;
+        let modeChart = null;
+        let hostChart = null;
+        let institutionChart = null;
+
+        async function fetchData() {
+            const res = await fetch(APPS_SCRIPT_URL + '?action=dashboard');
+            const json = await res.json();
+            if (json.status === 'success') return json.data;
+            throw new Error(json.message || '載入失敗');
+        }
+
+        function countBy(arr, key) {
+            const map = {};
+            arr.forEach(item => {
+                const val = item[key] || '未填寫';
+                map[val] = (map[val] || 0) + 1;
+            });
+            return map;
+        }
+
+        function renderDashboard(data) {
+            const app = document.getElementById('app');
+
+            if (!data || data.length === 0) {
+                app.innerHTML = `
+                    <div class="empty-state">
+                        <span class="empty-emoji">📭</span>
+                        <p>目前尚無報名資料</p>
+                        <p style="margin-top:8px"><a href="index.html" style="color:#c084fc">前往報名 &rarr;</a></p>
+                    </div>`;
+                return;
+            }
+
+            const total = data.length;
+            const categoryCounts = countBy(data, 'category');
+            const modeCounts = countBy(data, 'mode');
+            const hostCounts = countBy(data, 'isHost');
+            const instCounts = countBy(data, 'institution');
+
+            const onsite = modeCounts['實體'] || 0;
+            const online = modeCounts['線上'] || 0;
+            const hostYes = hostCounts['是'] || 0;
+            const uniqueInst = Object.keys(instCounts).length;
+
+            app.innerHTML = `
+                <!-- Stats -->
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <span class="stat-emoji">🎉</span>
+                        <div class="stat-number">${total}</div>
+                        <div class="stat-label">總報名人數</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-emoji">🏫</span>
+                        <div class="stat-number">${onsite}</div>
+                        <div class="stat-label">實體參與</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-emoji">💻</span>
+                        <div class="stat-number">${online}</div>
+                        <div class="stat-label">線上參與</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-emoji">🎯</span>
+                        <div class="stat-number">${hostYes}</div>
+                        <div class="stat-label">現任主持人</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-emoji">🏢</span>
+                        <div class="stat-number">${uniqueInst}</div>
+                        <div class="stat-label">報名機構數</div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>🩺 職類分布</h3>
+                        <div class="chart-wrapper"><canvas id="chartCategory"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>🖥️ 參與方式</h3>
+                        <div class="chart-wrapper"><canvas id="chartMode"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>🎯 是否擔任主持人</h3>
+                        <div class="chart-wrapper"><canvas id="chartHost"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>🏢 機構分布 (Top 10)</h3>
+                        <div class="chart-wrapper"><canvas id="chartInstitution"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Table -->
+                <div class="table-card">
+                    <h3>
+                        📋 報名明細
+                        <button class="refresh-btn" id="refreshBtn" onclick="refresh()">
+                            <span class="refresh-icon">🔄</span> 重新整理
+                        </button>
+                    </h3>
+                    <div style="max-height:450px; overflow-y:auto; border-radius:10px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>時間</th>
+                                    <th>姓名</th>
+                                    <th>機構</th>
+                                    <th>職稱</th>
+                                    <th>職類</th>
+                                    <th>主持人</th>
+                                    <th>方式</th>
+                                    <th>Email</th>
+                                    <th>電話</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.map((d, i) => `
+                                <tr>
+                                    <td>${i + 1}</td>
+                                    <td>${d.timestamp || ''}</td>
+                                    <td><strong>${d.name || ''}</strong></td>
+                                    <td>${d.institution || ''}</td>
+                                    <td>${d.title || ''}</td>
+                                    <td><span class="tag-sm">${d.category || ''}</span></td>
+                                    <td><span class="badge ${d.isHost === '是' ? 'badge-yes' : 'badge-no'}">${d.isHost || ''}</span></td>
+                                    <td><span class="badge ${d.mode === '實體' ? 'badge-onsite' : 'badge-online'}">${d.mode || ''}</span></td>
+                                    <td>${d.email || ''}</td>
+                                    <td>${d.phone || ''}</td>
+                                </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            renderCharts(categoryCounts, modeCounts, hostCounts, instCounts);
+        }
+
+        function renderCharts(categoryCounts, modeCounts, hostCounts, instCounts) {
+            const defaultOpts = {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { labels: { color: '#fff', font: { family: 'Noto Sans TC', size: 12 } } }
+                }
+            };
+
+            // Category - doughnut
+            const catLabels = Object.keys(categoryCounts);
+            const catValues = Object.values(categoryCounts);
+            categoryChart = new Chart(document.getElementById('chartCategory'), {
+                type: 'doughnut',
+                data: {
+                    labels: catLabels,
+                    datasets: [{
+                        data: catValues,
+                        backgroundColor: PALETTE.slice(0, catLabels.length),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    ...defaultOpts,
+                    cutout: '55%',
+                    plugins: {
+                        ...defaultOpts.plugins,
+                        legend: { position: 'right', labels: { color: '#fff', font: { family: 'Noto Sans TC', size: 11 }, padding: 10 } }
+                    }
+                }
+            });
+
+            // Mode - pie
+            modeChart = new Chart(document.getElementById('chartMode'), {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(modeCounts),
+                    datasets: [{
+                        data: Object.values(modeCounts),
+                        backgroundColor: ['#60a5fa', '#facc15'],
+                        borderWidth: 0
+                    }]
+                },
+                options: defaultOpts
+            });
+
+            // Host - pie
+            hostChart = new Chart(document.getElementById('chartHost'), {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(hostCounts),
+                    datasets: [{
+                        data: Object.values(hostCounts),
+                        backgroundColor: ['#4ade80', '#fb7185'],
+                        borderWidth: 0
+                    }]
+                },
+                options: defaultOpts
+            });
+
+            // Institution - horizontal bar (top 10)
+            const sorted = Object.entries(instCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+            institutionChart = new Chart(document.getElementById('chartInstitution'), {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(s => s[0]),
+                    datasets: [{
+                        label: '人數',
+                        data: sorted.map(s => s[1]),
+                        backgroundColor: PALETTE.slice(0, sorted.length),
+                        borderRadius: 6,
+                        barThickness: 22
+                    }]
+                },
+                options: {
+                    ...defaultOpts,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#ccc', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.06)' } },
+                        y: { ticks: { color: '#fff', font: { family: 'Noto Sans TC', size: 12 } }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function destroyCharts() {
+            [categoryChart, modeChart, hostChart, institutionChart].forEach(c => { if (c) c.destroy(); });
+            categoryChart = modeChart = hostChart = institutionChart = null;
+        }
+
+        async function refresh() {
+            const btn = document.getElementById('refreshBtn');
+            if (btn) btn.classList.add('spinning');
+            destroyCharts();
+            try {
+                const data = await fetchData();
+                renderDashboard(data);
+            } catch (err) {
+                document.getElementById('app').innerHTML = `<div class="empty-state"><span class="empty-emoji">😵</span><p>載入失敗：${err.message}</p></div>`;
+            }
+        }
+
+        // Initial load
+        fetchData()
+            .then(renderDashboard)
+            .catch(err => {
+                document.getElementById('app').innerHTML = `<div class="empty-state"><span class="empty-emoji">😵</span><p>載入失敗：${err.message}</p></div>`;
+            });
+    </script>
+</body>
+</html>

@@ -69,6 +69,53 @@ function doPost(e) {
 }
 
 function doGet(e) {
+  // action=dashboard：回傳所有報名資料供儀表板使用
+  if (e && e.parameter && e.parameter.action === 'dashboard') {
+    try {
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName(SHEET_NAME);
+
+      if (!sheet) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: 'error', message: '找不到分頁：' + SHEET_NAME }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      const lastRow = sheet.getLastRow();
+      if (lastRow < 2) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: 'success', data: [] }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      const range = sheet.getRange(2, 1, lastRow - 1, 9);
+      const values = range.getValues();
+
+      const records = values.map(function(row) {
+        return {
+          timestamp: row[0],
+          name: row[1],
+          institution: row[2],
+          title: row[3],
+          category: row[4],
+          isHost: row[5],
+          mode: row[6],
+          email: row[7],
+          phone: row[8]
+        };
+      });
+
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: 'success', data: records }))
+        .setMimeType(ContentService.MimeType.JSON);
+
+    } catch (error) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
   // 如果有帶參數，視為報名提交（解決跨域 POST 重導向問題）
   if (e && e.parameter && e.parameter.name) {
     try {
