@@ -387,7 +387,7 @@
 
   <script>
     // 部署 Apps Script 後，將下方網址替換為「網頁應用程式」的 /exec 網址。
-    const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzuwocVO7_nacD9L-u-M4WKLKkPBhcyvDUjUSAnjbwadSWMQXa9-nvHZ5H6e-WZ3rKbtQ/exec';
     const form = document.querySelector('#workshop-form');
     const toast = document.querySelector('#toast');
     const submitButton = form.querySelector('button[type="submit"]');
@@ -403,7 +403,7 @@
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
 
-      if (APPS_SCRIPT_URL.includes('PASTE_YOUR_')) {
+      if (!APPS_SCRIPT_URL.startsWith('https://script.google.com/macros/s/') || !APPS_SCRIPT_URL.endsWith('/exec')) {
         showToast('⚙️ 尚未設定 Apps Script 網址，請先完成部署設定。');
         return;
       }
