@@ -33,3 +33,9 @@
 `dashboard.html` 會以 JSONP 讀取 Apps Script 的彙總資料，不會傳回姓名、Email 或電話。新增儀表板後，請將最新版 `Code.gs` 貼回 Apps Script，並在「管理部署作業」中建立新版本後重新部署。
 
 重新部署後，可在 `/exec` 網址後加上 `?action=dashboard` 測試；成功時會回傳報名總數、參與方式、主持人狀態、職類與機構統計。
+
+## 報名限額
+
+活動限額設定為 4 名。網頁會透過 `?action=status` 查詢即時人數，達上限後顯示「額滿」並停用報名表單；`Code.gs` 也會在寫入資料的鎖定區段再次檢查人數，防止同時送出造成超額。
+
+修改限額時，請同步調整 `Code.gs` 與 `index.html` 中的 `REGISTRATION_CAPACITY`，接著建立 Apps Script 新版本並重新部署。
