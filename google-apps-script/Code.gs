@@ -1,5 +1,6 @@
 const SPREADSHEET_ID = '1v0_9-XG5DikOT4-Kk1mUToUXATkleCutJi4dwB3HMBA';
 const SHEET_NAME = '工作坊報名資料';
+const REGISTRATION_CAPACITY = 4;
 const HEADERS = [
   '送出時間',
   '姓名',
@@ -17,10 +18,37 @@ function doGet(e) {
     return dashboardResponse_(e.parameter.callback);
   }
 
+  if (e && e.parameter && e.parameter.action === 'status') {
+    return statusResponse_(e.parameter.callback);
+  }
+
   return jsonResponse_({
     ok: true,
     message: '工作坊報名 API 運作中'
   });
+}
+
+function statusResponse_(callback) {
+  try {
+    const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = spreadsheet.getSheetByName(SHEET_NAME);
+    if (!sheet) {
+      throw new Error('找不到分頁：' + SHEET_NAME);
+    }
+
+    const count = getRegistrationCount_(sheet);
+    const payload = {
+      ok: true,
+      count: count,
+      capacity: REGISTRATION_CAPACITY,
+      full: count >= REGISTRATION_CAPACITY
+    };
+
+    return jsonpOrJsonResponse_(payload, callback);
+  } catch (error) {
+    console.error(error);
+    return jsonResponse_({ ok: false, message: error.message });
+  }
 }
 
 function dashboardResponse_(callback) {
@@ -65,6 +93,8 @@ function getDashboardData_() {
     online: attendanceCounts['線上'] || 0,
     hostYes: hostCounts['是'] || 0,
     hostNo: hostCounts['否'] || 0,
+    capacity: REGISTRATION_CAPACITY,
+    full: rows.length >= REGISTRATION_CAPACITY,
     uniqueInstitutions: Object.keys(institutionCounts).length,
     professions: toSortedItems_(professionCounts),
     institutions: toSortedItems_(institutionCounts),
@@ -121,6 +151,15 @@ function doPost(e) {
     }
 
     ensureHeaders_(sheet);
+    const registrationCount = getRegistrationCount_(sheet);
+    if (registrationCount >= REGISTRATION_CAPACITY) {
+      return jsonResponse_({
+        ok: false,
+        full: true,
+        message: '本活動已額滿，停止受理報名'
+      });
+    }
+
     sheet.appendRow([
       new Date(),
       safeCell_(data.name),
@@ -140,6 +179,18 @@ function doPost(e) {
   } finally {
     lock.releaseLock();
   }
+}
+
+function getRegistrationCount_(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return 0;
+
+  return sheet
+    .getRange(2, 2, lastRow - 1, 1)
+    .getDisplayValues()
+    .filter(function (row) {
+      return String(row[0] || '').trim() !== '';
+    }).length;
 }
 
 function ensureHeaders_(sheet) {
@@ -170,4 +221,14 @@ function jsonResponse_(payload) {
   return ContentService
     .createTextOutput(JSON.stringify(payload))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function jsonpOrJsonResponse_(payload, callback) {
+  if (callback && /^[A-Za-z_$][0-9A-Za-z_$.]*$/.test(callback)) {
+    return ContentService
+      .createTextOutput(callback + '(' + JSON.stringify(payload) + ');')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+
+  return jsonResponse_(payload);
 }
