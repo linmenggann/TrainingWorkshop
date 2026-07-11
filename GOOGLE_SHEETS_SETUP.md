@@ -1,6 +1,3 @@
-Exit code: 0
-Wall time: 0.3 seconds
-Output:
 # Google Sheets 報名串接設定
 
 目標試算表：`1v0_9-XG5DikOT4-Kk1mUToUXATkleCutJi4dwB3HMBA`
@@ -36,4 +33,3 @@ Output:
 `dashboard.html` 會以 JSONP 讀取 Apps Script 的彙總資料，不會傳回姓名、Email 或電話。新增儀表板後，請將最新版 `Code.gs` 貼回 Apps Script，並在「管理部署作業」中建立新版本後重新部署。
 
 重新部署後，可在 `/exec` 網址後加上 `?action=dashboard` 測試；成功時會回傳報名總數、參與方式、主持人狀態、職類與機構統計。
-
