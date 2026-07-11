@@ -1,6 +1,6 @@
 # Google Sheets 報名串接設定
 
-目標試算表：`1v0_9-XG5DikOT4-Kk1mUToUXATkleCutJi4dwB3HMBA`  
+目標試算表：`1v0_9-XG5DikOT4-Kk1mUToUXATkleCutJi4dwB3HMBA`
 分頁名稱：`工作坊報名資料`
 
 ## 表頭（A1:I1）
