@@ -229,6 +229,7 @@
       transition: transform .2s, box-shadow .2s;
     }
     button:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 18px 42px rgba(244,114,182,.3); }
+    button:disabled { cursor: wait; opacity: .7; transform: none; box-shadow: none; }
 
     .contact {
       margin-top: 28px;
@@ -369,7 +370,7 @@
         </div>
 
         <div class="submit-row">
-          <div class="privacy">🔒 送出前請再次確認資料。此展示頁不會將資料傳送至伺服器。</div>
+          <div class="privacy">🔒 送出後，資料將安全寫入「工作坊報名資料」試算表。</div>
           <button type="submit">完成報名 →</button>
         </div>
       </form>
@@ -382,16 +383,53 @@
     </footer>
   </main>
 
-  <div class="toast" id="toast" role="status" aria-live="polite">🎉 資料檢查完成！這是展示頁，尚未連接報名系統。</div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script>
+    // 部署 Apps Script 後，將下方網址替換為「網頁應用程式」的 /exec 網址。
+    const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
     const form = document.querySelector('#workshop-form');
     const toast = document.querySelector('#toast');
+    const submitButton = form.querySelector('button[type="submit"]');
+    let toastTimer;
 
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
+    function showToast(message) {
+      window.clearTimeout(toastTimer);
+      toast.textContent = message;
       toast.classList.add('show');
-      window.setTimeout(() => toast.classList.remove('show'), 4200);
+      toastTimer = window.setTimeout(() => toast.classList.remove('show'), 5000);
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      if (APPS_SCRIPT_URL.includes('PASTE_YOUR_')) {
+        showToast('⚙️ 尚未設定 Apps Script 網址，請先完成部署設定。');
+        return;
+      }
+
+      const originalText = submitButton.textContent;
+      submitButton.disabled = true;
+      submitButton.textContent = '傳送中…';
+
+      try {
+        const payload = Object.fromEntries(new FormData(form).entries());
+        await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+
+        form.reset();
+        showToast('🎉 報名成功！資料已送出至工作坊報名表。');
+      } catch (error) {
+        console.error('Registration submission failed:', error);
+        showToast('😵 送出失敗，請確認網路或稍後再試。');
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = originalText;
+      }
     });
   </script>
 </body>
