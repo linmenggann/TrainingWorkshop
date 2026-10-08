@@ -36,8 +36,11 @@ function setupSheet() {
   }
 }
 
-/** 開啟部署網址僅顯示狀態，不讀取或公開報名資料。 */
-function doGet() {
+/** 儀表板只取得彙總統計；不傳回報名名單或個人聯絡資料。 */
+function doGet(e) {
+  if (e && e.parameter && e.parameter.action === 'dashboard') {
+    return dashboardResponse_(e);
+  }
   return receipt_('報名接收服務', '請從工作坊網頁填寫資料並送出報名。', false);
 }
 
@@ -161,4 +164,105 @@ function receipt_(title, message, success, requestId, submittedAt) {
     '</main></body></html>';
   return HtmlService.createHtmlOutput(html).setTitle(title)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+/** 唯讀統計介面。JSONP 供 GitHub Pages 跨來源讀取；不需要公開整份試算表。 */
+function dashboardResponse_(e) {
+  const callback = e.parameter.callback || '';
+  const validCallback = /^workshopDashboard_[A-Za-z0-9_]{1,80}$/.test(callback);
+  let result;
+  try {
+    if (callback && !validCallback) fail_('統計請求格式不正確。');
+    result = registrationStats_(e.parameter);
+  } catch (error) {
+    result = {type: 'workshop-dashboard', version: 1, ok: false,
+      message: error && error.userMessage ? error.userMessage : '無法讀取報名統計，請主辦單位確認部署版本與試算表存取權限。'};
+  }
+  const json = JSON.stringify(result).replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+  return ContentService.createTextOutput(validCallback ? callback + '(' + json + ');' : json)
+    .setMimeType(validCallback ? ContentService.MimeType.JAVASCRIPT : ContentService.MimeType.JSON);
+}
+
+function registrationStats_(params) {
+  const filters = {};
+  ['profession', 'attendance', 'host', 'from', 'to'].forEach(function (key) {
+    filters[key] = String(params[key] || '').trim();
+  });
+  if ((filters.profession && PROFESSIONS.indexOf(filters.profession) < 0) ||
+      (filters.attendance && ['實體', '線上'].indexOf(filters.attendance) < 0) ||
+      (filters.host && ['是', '否'].indexOf(filters.host) < 0)) fail_('篩選條件不正確。');
+  ['from', 'to'].forEach(function (key) {
+    if (filters[key] && !validDateKey_(filters[key])) fail_('請使用有效的篩選日期。');
+  });
+  if (filters.from && filters.to && filters.from > filters.to) fail_('起始日期不能晚於結束日期。');
+
+  // 統計請求不可建立分頁、重設表頭或寫入任何資料。
+  const sheet = SpreadsheetApp.openById(CONFIG.spreadsheetId).getSheetByName(CONFIG.sheetName);
+  if (!sheet) fail_('找不到「工作坊報名資料」分頁，請主辦單位確認試算表設定。');
+  if (sheet.getLastRow() === 0 || sheet.getMaxColumns() < HEADERS.length) fail_('統計表頭尚未設定，請主辦單位先執行 setupSheet。');
+  const values = sheet.getRange(1, 1, sheet.getLastRow(), HEADERS.length).getValues();
+  if (!HEADERS.every(function (header, index) { return values[0][index] === header; })) {
+    fail_('試算表表頭不符，請主辦單位確認 A1:J1。');
+  }
+  const stats = {type: 'workshop-dashboard', version: 1, ok: true,
+    timezone: CONFIG.timezone, generatedAt: new Date().toISOString(), filters: filters,
+    total: 0, overallTotal: 0, today: 0, organizations: 0, lastRegistrationAt: null,
+    professions: {}, attendance: {'實體': 0, '線上': 0, '未分類': 0},
+    hosts: {'是': 0, '否': 0, '未分類': 0}, daily: [],
+    quality: {incomplete: 0, unknownDate: 0}};
+  PROFESSIONS.forEach(function (profession) { stats.professions[profession] = 0; });
+  stats.professions['未分類'] = 0;
+  const organizations = new Set();
+  const days = {};
+  const today = Utilities.formatDate(new Date(), CONFIG.timezone, 'yyyy-MM-dd');
+  values.slice(1).forEach(function (row) {
+    // 八個報名欄位全空的列不列入；部分缺值仍計入並提示資料品質。
+    const fields = row.slice(1, 9).map(function (value) { return String(value == null ? '' : value).trim(); });
+    if (!fields.some(function (value) { return value !== ''; })) return;
+    stats.overallTotal++;
+    const time = registrationTime_(row[0]);
+    if ((filters.profession && fields[3] !== filters.profession) ||
+        (filters.attendance && fields[5] !== filters.attendance) ||
+        (filters.host && fields[4] !== filters.host) ||
+        ((filters.from || filters.to) && !time) ||
+        (filters.from && time.date < filters.from) || (filters.to && time.date > filters.to)) return;
+    stats.total++;
+    if (fields.some(function (value) { return value === ''; })) stats.quality.incomplete++;
+    if (fields[1]) organizations.add(fields[1]);
+    const profession = PROFESSIONS.indexOf(fields[3]) >= 0 ? fields[3] : '未分類';
+    const attendance = ['實體', '線上'].indexOf(fields[5]) >= 0 ? fields[5] : '未分類';
+    const host = ['是', '否'].indexOf(fields[4]) >= 0 ? fields[4] : '未分類';
+    stats.professions[profession]++;
+    stats.attendance[attendance]++;
+    stats.hosts[host]++;
+    if (time) {
+      days[time.date] = (days[time.date] || 0) + 1;
+      if (time.date === today) stats.today++;
+      if (!stats.lastRegistrationAt || time.timestamp > stats.lastRegistrationAt) stats.lastRegistrationAt = time.timestamp;
+    } else stats.quality.unknownDate++;
+  });
+  stats.organizations = organizations.size;
+  stats.daily = Object.keys(days).sort().map(function (date) { return {date: date, count: days[date]}; });
+  return stats;
+}
+
+function validDateKey_(date) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  const parsed = new Date(date + 'T00:00:00Z');
+  return !isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
+}
+
+function registrationTime_(value) {
+  let text;
+  if (Object.prototype.toString.call(value) === '[object Date]') {
+    if (isNaN(value.getTime())) return null;
+    text = Utilities.formatDate(value, CONFIG.timezone, 'yyyy/MM/dd HH:mm:ss');
+  } else text = String(value == null ? '' : value).trim();
+  const match = /^(\d{4})[\/-](\d{2})[\/-](\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(text);
+  if (!match) return null;
+  const date = match[1] + '-' + match[2] + '-' + match[3];
+  const hour = match[4] || '00', minute = match[5] || '00', second = match[6] || '00';
+  if (!validDateKey_(date) || Number(hour) > 23 || Number(minute) > 59 || Number(second) > 59) return null;
+  return {date: date, timestamp: date + ' ' + hour + ':' + minute + ':' + second};
 }
