@@ -90,3 +90,25 @@ test('date parser validates real dates, midnight and Sheets Date values in Taipe
  assert.equal(context.registrationTime_('2026-10-09').timestamp,'2026-10-09 00:00:00');
  assert.equal(context.registrationTime_(new Date('2026-10-08T16:00:00Z')).date,'2026-10-09');
 });
+
+test('capacity is global and remains full even when filtered charts show zero registrations',()=>{
+ const data=harness().stats({profession:'語言治療'});
+ assert.equal(data.total,0);assert.deepEqual(data.capacity,{limit:4,registered:5,remaining:0,full:true});
+ const empty=harness([headers.slice()]).stats();assert.deepEqual(empty.capacity,{limit:4,registered:0,remaining:4,full:false});
+ const three=harness(fixture().slice(0,4)).stats();assert.deepEqual(three.capacity,{limit:4,registered:3,remaining:1,full:false});
+});
+test('capacity GET and JSONP contain only counts and match the dashboard capacity',()=>{
+ const {context,stats,state}=harness();
+ const plain=context.doGet({parameter:{action:'capacity'}});const data=JSON.parse(plain.body);
+ assert.equal(data.type,'workshop-capacity');assert.equal(data.ok,true);assert.deepEqual(data.capacity,stats().capacity);
+ const output=context.doGet({parameter:{action:'capacity',callback:'workshopCapacity_test_1'}});let received;
+ vm.runInNewContext(output.body,{workshopCapacity_test_1(value){received=value;}});assert.equal(received.capacity.remaining,0);
+ for(const text of ['測試甲','a@example.com','0911111111','id-a','professions','機構甲'])assert.ok(!output.body.includes(text));
+ assert.equal(state.writes,0);
+});
+test('capacity endpoint rejects unsafe callbacks and reports unavailable data without pretending zero',()=>{
+ const {context,state}=harness();const invalid=context.doGet({parameter:{action:'capacity',callback:'alert(1)'}});
+ assert.equal(JSON.parse(invalid.body).ok,false);assert.equal(invalid.type,'json');assert.equal(state.reads,0);
+ const denied=harness(undefined,{accessDenied:true}).context.doGet({parameter:{action:'capacity'}});
+ const data=JSON.parse(denied.body);assert.equal(data.ok,false);assert.equal(data.capacity,undefined);
+});

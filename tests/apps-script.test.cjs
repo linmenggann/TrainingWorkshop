@@ -11,7 +11,7 @@ const expectedHeaders = fs.readFileSync('apps-script/headers.tsv', 'utf8').trim(
 
 function harness(options = {}) {
   const rows = options.rows || [];
-  const state = {rows, formats:[], acquired:0, released:0, opens:[], inserted:[], flushes:0};
+  const state = {rows, formats:[], acquired:0, released:0, opens:[], inserted:[], flushes:0, lockActive:false, capacityChecks:[], notified:false};
   const sheet = {
     getMaxColumns:()=>10, getMaxRows:()=>1000, getLastRow:()=>rows.length,
     insertColumnsAfter(){}, insertRowsAfter(){}, setFrozenRows(){}, autoResizeColumns(){},
@@ -19,7 +19,7 @@ function harness(options = {}) {
       const range = {
         setValues(values) {values.forEach((values,i)=>{rows[row-1+i] ||= [];
           values.forEach((value,j)=>{rows[row-1+i][column-1+j]=value;});});return range;},
-        getValues() {return Array.from({length:count},(_,i)=>Array.from({length:columns},(_,j)=>rows[row-1+i]?.[column-1+j] ?? ''));},
+        getValues() {if(row>1&&column===2&&columns===8){state.capacityChecks.push(state.lockActive);if(options.onCapacityRead&&!state.notified){state.notified=true;options.onCapacityRead();}}return Array.from({length:count},(_,i)=>Array.from({length:columns},(_,j)=>rows[row-1+i]?.[column-1+j] ?? ''));},
         setNumberFormat(value) {state.formats.push({row,column,count,columns,value});return range;},
         setFontWeight(){return range;}, setBackground(){return range;}, setFontColor(){return range;},
         createTextFinder(value) {let exact=false;return {
@@ -29,12 +29,12 @@ function harness(options = {}) {
       };return range;
     }
   };
-  const lock = {held:false,waitLock(){this.held=true;state.acquired++;},
-    tryLock(){if(options.lockDenied)return false;this.held=true;state.acquired++;return true;},
-    hasLock(){return this.held;},releaseLock(){this.held=false;state.released++;}};
+  const newLock = ()=>({held:false,waitLock(){this.held=true;state.lockActive=true;state.acquired++;},
+    tryLock(){if(options.lockDenied||state.lockActive)return false;this.held=true;state.lockActive=true;state.acquired++;return true;},
+    hasLock(){return this.held;},releaseLock(){this.held=false;state.lockActive=false;state.released++;}});
   const spreadsheet={getSheetByName(name){assert.equal(name,'工作坊報名資料');return options.missingSheet ? null : sheet;},
     insertSheet(name){state.inserted.push(name);return sheet;}};
-  const context = vm.createContext({console:{log(){}},LockService:{getScriptLock:()=>lock},
+  const context = vm.createContext({console:{log(){}},LockService:{getScriptLock:newLock},
     SpreadsheetApp:{openById(value){state.opens.push(value);if(options.openDenied)throw Error('access denied');return spreadsheet;},
       flush(){state.flushes++;if(options.failFirstFlush && state.flushes===1)throw Error('write confirmation failed');}},
     Utilities:{formatDate(date,tz,format){assert.equal(tz,'Asia/Taipei');assert.equal(format,'yyyy/MM/dd HH:mm:ss');return '2026/10/09 10:30:00';}},
@@ -117,4 +117,48 @@ test('GET and receipts do not expose submitted names, email or phone; HTML is es
   assert.doesNotMatch(context.doGet().html,/1LEllNRe|test@example.com/);
   assert.match(context.receipt_('<img src=x>','<script>bad</script>',false).html,/&lt;img/);
   assert.doesNotMatch(context.receipt_('x','<script>bad</script>',false).html,/<script>/);
+});
+
+const registrationId = number => number.toString(16).padStart(8,'0')+'-1111-4111-8111-111111111111';
+
+test('first four registrations are accepted and the fifth is rejected without a write',()=>{
+  const {post,state}=harness();
+  for(let i=1;i<=4;i++)assert.match(post({requestId:registrationId(i)}),/報名已送出/);
+  const original=JSON.stringify(state.rows),flushes=state.flushes;
+  assert.match(post({requestId:registrationId(5)}),/<h1>額滿<\/h1>/);
+  assert.equal(JSON.stringify(state.rows),original);assert.equal(state.flushes,flushes);
+  assert.equal(state.rows.length,5);assert.equal(state.acquired,state.released);
+  assert.ok(state.capacityChecks.every(Boolean),'Capacity was always read while the write lock was held');
+});
+
+test('same accepted ID can recover its receipt after the event is full without consuming a seat',()=>{
+  const {post,state}=harness();for(let i=1;i<=4;i++)post({requestId:registrationId(i)});
+  const flushes=state.flushes;assert.match(post({requestId:registrationId(4)}),/這筆報名已收到/);
+  assert.equal(state.rows.length,5);assert.equal(state.flushes,flushes);
+});
+
+test('competing requests for the last seat cannot both write and retry stays full',()=>{
+  const options={};const {post,state}=harness(options);
+  for(let i=1;i<=3;i++)post({requestId:registrationId(i)});
+  let competing;
+  options.onCapacityRead=()=>{competing=post({requestId:registrationId(5)});};
+  assert.match(post({requestId:registrationId(4)}),/報名已送出/);
+  assert.match(competing,/目前送出人數較多/);
+  assert.match(post({requestId:registrationId(5)}),/<h1>額滿<\/h1>/);
+  assert.equal(state.rows.length,5);assert.equal(state.lockActive,false);
+  assert.equal(state.acquired,state.released);assert.ok(state.capacityChecks.every(Boolean));
+});
+
+test('blank and timestamp-only rows do not consume seats, partially filled registrations do',()=>{
+  const rows=[expectedHeaders.slice(),
+    ['date','第一名'],['date','第二名'],['date','第三名'],Array(10).fill(''),['date']];
+  const {post,state}=harness({rows});assert.match(post({requestId:registrationId(4)}),/報名已送出/);
+  assert.match(post({requestId:registrationId(5)}),/<h1>額滿<\/h1>/);
+  assert.equal(state.rows[1][1],'第一名');assert.equal(state.rows.length,7);
+});
+
+test('preexisting registrations above four are preserved and new registrations stop',()=>{
+  const rows=[expectedHeaders.slice(),...Array.from({length:5},(_,i)=>['date','既有'+i])];
+  const before=JSON.stringify(rows);const {post}=harness({rows});assert.match(post(),/<h1>額滿<\/h1>/);
+  assert.equal(JSON.stringify(rows),before);
 });
